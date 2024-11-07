@@ -3,6 +3,8 @@ import { Book, BookOpen, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BookCard from './BookCard';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 // Type definition for Book
 interface Book {
   id: string;
@@ -33,7 +35,7 @@ const BookGallery: React.FC = () => {
     const fetchBooks = async () => {
         console.log(token);
       try {
-        const response = await fetch('http://localhost:3000/api/books', {
+        const response = await fetch(apiUrl + 'api/books', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -64,7 +66,7 @@ const BookGallery: React.FC = () => {
 
   const getUserName = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/users/${id}`, {
+      const response = await fetch(apiUrl + 'api/users/' + id, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +85,7 @@ const BookGallery: React.FC = () => {
 
   const addBook = async () => {
     try {
-    const response = await fetch('http://localhost:3000/api/books', {
+    const response = await fetch(apiUrl + 'api/books', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -102,7 +104,7 @@ const BookGallery: React.FC = () => {
 const deleteBook = async (id: string) => {
     console.log(id);
     try {
-        const response = await fetch(`http://localhost:3000/api/books/${id}`, {
+        const response = await fetch(apiUrl + 'api/books/' + id, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

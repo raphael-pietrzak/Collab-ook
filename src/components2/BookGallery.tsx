@@ -23,8 +23,11 @@ const BookGallery: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const token = localStorage.getItem('token');
-
+  const user = localStorage.getItem('user');
+  
   const navigate = useNavigate();
+
+  
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -42,6 +45,12 @@ const BookGallery: React.FC = () => {
 
         const data: Book[] = await response.json();
         setBooks(data);
+
+        for (const book of data) {
+          const author = await getUserName(book.id);
+          book.author = author;
+        }
+
         setIsLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -50,7 +59,26 @@ const BookGallery: React.FC = () => {
     };
 
     fetchBooks();
+
   }, []);
+
+  const getUserName = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/users/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch user');
+      const user = await response.json();
+      return user.name;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      return 'Auteur Inconnu';
+    }
+  }
 
 
   const addBook = async () => {
@@ -61,7 +89,7 @@ const BookGallery: React.FC = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ title: 'Nouveau livre' })
+        body: JSON.stringify({ title: 'Nouveau livre', author: user})
     });
     if (!response.ok) throw new Error('Failed to create book');
     const newBook = await response.json();
@@ -122,6 +150,13 @@ const deleteBook = async (id: string) => {
       <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">
         Livres en Cours d'Écriture
       </h1>
+
+      <button
+        onClick={addBook}
+        className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+        >
+        Créer un livre
+      </button>
       
       {books.length === 0 ? (
         <div className="text-center text-gray-500">
@@ -139,15 +174,10 @@ const deleteBook = async (id: string) => {
               synopsis={book.synopsis || ''}
               progress={book.progress}
               onEdit={(id) => navigate(`/editor/${id}`)}
-              onDelete={deleteBook}
+              onDelete={(id) => deleteBook(id)}
             />
           ))}
-          <button
-            onClick={addBook}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
-            >
-            Créer un livre
-            </button>
+          
             <BookCard 
                 id="1"
                 title="Harry Potter"
@@ -157,6 +187,7 @@ const deleteBook = async (id: string) => {
                 onEdit={(id) => console.log('Edit book', id)}
                 onDelete={(id) => console.log('Delete book', id)}
             />
+            
         </div>
       )}
     </div>

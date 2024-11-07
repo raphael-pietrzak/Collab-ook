@@ -115,6 +115,13 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/books', authenticateToken, async (req, res) => {
   try {
     const { title } = req.body;
+
+    // get user name
+    const user = await db.execute({
+      sql: 'SELECT * FROM users WHERE id = ?',
+      args: [req.user.id]
+    });
+    
     const result = await db.execute({
       sql: 'INSERT INTO books (title, user_id) VALUES (?, ?) RETURNING id',
       args: [title, req.user.id]
@@ -137,9 +144,25 @@ app.get('/api/books', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/book', async (req, res) => {
+  try {
+    const result = await db.execute({
+      sql: 'SELECT * FROM books'
+    });
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/books/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    await db.execute({
+      sql: 'DELETE FROM chapters WHERE book_id = ?',
+      args: [id]
+    });
 
     await db.execute({
       sql: 'DELETE FROM books WHERE id = ?',
@@ -200,6 +223,19 @@ app.get('/api/books/:bookId/chapters', authenticateToken, async (req, res) => {
       args: [bookId]
     });
     res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/user/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.execute({
+      sql: 'SELECT * FROM users WHERE id = ?',
+      args: [id]
+    });
+    res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

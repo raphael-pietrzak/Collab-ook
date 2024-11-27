@@ -29,7 +29,7 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
   fetchChapters: async (token: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await getChapters(token);
+      const response = await getChapters("1", token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch chapters', isLoading: false });
@@ -52,7 +52,7 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await createChapter(data, token);
-      const response = await getChapters(token);
+      const response = await getChapters(token, data.bookId);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to add chapter', isLoading: false });
@@ -63,7 +63,7 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await updateChapter(id, data, token);
-      const response = await getChapters(token);
+      const response = await getChapters(data.bookId, token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to edit chapter', isLoading: false });
@@ -74,7 +74,7 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await deleteChapter(id, token);
-      const response = await getChapters(token);
+      const response = await getChapters("1", token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to remove chapter', isLoading: false });

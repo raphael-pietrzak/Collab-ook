@@ -1,11 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import AuthenticatedRoute from './components2/AuthenticatedRoute';
-import LoginForm from './components2/LoginForm';
-import RegisterForm from './components2/RegisterForm';
-import Editor from './components2/Editor';
+import AuthenticatedRoute from './components/auth/AuthenticatedRoute';
+import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm';
+import Editor from './pages/Editor';
 import Home from './pages/Home';
 import Gallery from './pages/BookGallery';
+import { SharedEditor } from './components/editor/SharedEditor';
 
 
 function App() {
@@ -32,6 +33,17 @@ function App() {
             }
           />
           <Route path="/" element={<Home />} />
+
+          <Route 
+            path="/shared-editor/:chapterId" 
+            element={
+              <AuthenticatedRoute>
+                <SharedEditor />
+              </AuthenticatedRoute>
+            }
+          />
+
+
 
           
         </Routes>

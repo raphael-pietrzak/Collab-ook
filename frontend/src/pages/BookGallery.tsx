@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Book, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import BookCard from '../components2/BookCard';
-import Navbar from '../components/Navbar';
+import BookCard from '../components/gallery/BookCard';
+import Navbar from '../components/shared/Navbar';
 
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -26,6 +26,8 @@ const BookGallery: React.FC = () => {
 
   useEffect(() => {
     const fetchAllBooks = async () => {
+      console.log('fetching books');
+      console.log(token);
       await fetchBooks(token);
     };
 
@@ -52,7 +54,7 @@ const BookGallery: React.FC = () => {
         </h1>
         <button
           onClick={handleAddBook}
-          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 mb-4"
         >
           Créer un livre
         </button>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 const apiUrl = import.meta.env.VITE_API_URL;
+import { useNavigate } from 'react-router-dom';
 
 export default function RegisterForm() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -32,6 +34,7 @@ export default function RegisterForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
+      navigate('/login');
       // Redirect or show success message
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

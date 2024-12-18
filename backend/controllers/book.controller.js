@@ -2,7 +2,6 @@ const Book = require('../models/book.model');
 
 // Création d'un livre
 
-
 exports.createBook = async (req, res) => {
   try {
     const { title } = req.body;
@@ -68,3 +67,18 @@ exports.deleteBook = async (req, res) => {
   }
 };
 
+
+// Création d'un chapitre
+
+exports.createChapter = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const book = await Book.findByPk(req.params.id);
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+    const chapter = await book.createChapter({ title, content });
+    res.status(201).json(chapter);
+  }
+  catch (error) {
+    res.status(500).json({ error: 'Failed to create chapter' });
+  }
+}

@@ -42,6 +42,7 @@ export default function RegisterForm() {
   };
 
   return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
       <div>
         <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -103,6 +104,9 @@ export default function RegisterForm() {
         <div className="text-red-600 text-sm">{error}</div>
       )}
 
+      <br />
+      <a href="/login" className="text-amber-600 hover:text-amber-700 font-medium text-sm transition duration-300 ease-in-out transform hover:scale-105">Sign In</a>
+
       <button
         type="submit"
         className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
@@ -110,5 +114,6 @@ export default function RegisterForm() {
         S'inscrire
       </button>
     </form>
+    </div>
   );
 }

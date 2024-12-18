@@ -21,7 +21,7 @@ const BookCard: React.FC<BookCardProps> = ({ id, title, author, synopsis, progre
       className={`bg-white shadow-md p-4 rounded-lg w-full max-w-md transform transition-transform duration-300 ${isHovering ? 'scale-105' : 'scale-100'}`}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      onClick={() => onEdit(id)}
+      // onClick={() => onEdit(id)}
       style={{ cursor: 'pointer' }}
     >
       <div className="flex justify-between items-center">

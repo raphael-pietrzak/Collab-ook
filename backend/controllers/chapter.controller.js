@@ -26,13 +26,14 @@ exports.getChapterById = async (req, res) => {
 exports.getAllChapters = async (req, res) => {
     try {
         // Récupération de l'ID du livre depuis les paramètres de la requête
-        const bookId = req.params.bookId;
+        const bookId = req.params.id;
         const chapters = await Chapter.findAll({ 
             where: { book_id: bookId },
             order: [['order_index', 'ASC']] // Trie les chapitres par ordre
         });
         res.json(chapters);
     } catch (error) {
+        
         res.status(500).json({ error: 'Failed to fetch chapters : ' + error.message });
     }
 }

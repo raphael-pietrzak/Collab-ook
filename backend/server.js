@@ -20,7 +20,6 @@ app.use(cors());
 // Middleware pour parser les requêtes JSON
 app.use(bodyParser.json());
 
-
 // Routes
 app.use('/api/auth', authRoutes);     // Routes pour l'authentification
 app.use('/api/books', bookRoutes);    // Routes pour les livres

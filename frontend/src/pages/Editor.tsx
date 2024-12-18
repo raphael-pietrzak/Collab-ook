@@ -5,6 +5,7 @@ import ChaptersSidebar from '../components/editor/ChaptersSidebar';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import debounce from 'lodash/debounce';
+import { useParams } from 'react-router-dom';
 
 const getRandomColor = () => {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5'];
@@ -22,6 +23,7 @@ export default function Editor() {
   const [connectedUsers, setConnectedUsers] = useState<Array<{ name: string; color: string }>>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [content, setContent] = useState('');
+  const { bookId } = useParams();
   
   const saveSelection = () => {
     const selection = window.getSelection();
@@ -124,7 +126,7 @@ export default function Editor() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <ChaptersSidebar bookId="1" />
+      {bookId && <ChaptersSidebar bookId={bookId} />}
       <div className="flex-1">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="bg-white rounded-lg shadow-lg min-h-[calc(100vh-4rem)]">

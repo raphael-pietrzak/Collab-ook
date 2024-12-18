@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useChaptersStore } from '../../store/useChaptersStore';
 import { Plus, Trash2, Edit2, ChevronRight, Loader2 } from 'lucide-react';
 
-const DEMO_BOOK_ID = 'demo-book-1';
 
 export default function ChaptersSidebar({ bookId }: { bookId: string }) {
   const { chapters, isLoading, error, addChapter, removeChapter, fetchChapters } = useChaptersStore();
@@ -13,14 +12,14 @@ export default function ChaptersSidebar({ bookId }: { bookId: string }) {
   const token = localStorage.getItem('token') || '';
 
   useEffect(() => {
-    fetchChapters(token);
+    fetchChapters({ bookId }, token);
   }, [fetchChapters, bookId, token]);
 
   const handleAddChapter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChapterTitle.trim()) return;
 
-    await addChapter(DEMO_BOOK_ID, { title: newChapterTitle }, token);
+    await addChapter(bookId, { title: newChapterTitle, content: ''}, token);
 
     setNewChapterTitle('');
     setIsAdding(false);
@@ -28,7 +27,7 @@ export default function ChaptersSidebar({ bookId }: { bookId: string }) {
 
   const handleRemoveChapter = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this chapter?')) {
-      await removeChapter(id, token);
+      await removeChapter(id, { bookId }, token);
     }
   };
 

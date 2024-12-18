@@ -1,4 +1,5 @@
 const Book = require('../models/book.model');
+const Chapter = require('../models/chapter.model');
 
 // Création d'un livre
 
@@ -73,12 +74,10 @@ exports.deleteBook = async (req, res) => {
 exports.createChapter = async (req, res) => {
   try {
     const { title, content } = req.body;
-    const book = await Book.findByPk(req.params.id);
-    if (!book) return res.status(404).json({ error: 'Book not found' });
-    const chapter = await book.createChapter({ title, content });
+    const chapter = await Chapter.create({ title, content, book_id: req.params.id, order_index: 1, created_at: new Date() });
     res.status(201).json(chapter);
-  }
-  catch (error) {
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ error: 'Failed to create chapter' });
   }
 }

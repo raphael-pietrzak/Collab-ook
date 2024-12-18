@@ -24,7 +24,8 @@ app.use(bodyParser.json());
 // Routes
 app.use('/api/auth', authRoutes);     // Routes pour l'authentification
 app.use('/api/books', bookRoutes);    // Routes pour les livres
-app.use('api/books/:id/chapters', chapterRoutes);
+app.use('/api/chapters', chapterRoutes);
+
 
 
 // Middleware pour gérer les erreurs 404

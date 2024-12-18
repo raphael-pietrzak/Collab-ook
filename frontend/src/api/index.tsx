@@ -22,7 +22,7 @@ export const deleteBook = (id: string, token: string | null) => api.delete(`book
 export const getChapters = (bookId: string, token: string | null) => 
     api.get(`books/${bookId}/chapters`, getAuthHeaders(token));
 export const getChapterById = (id: string, token: string | null) => api.get(`chapters/${id}`, getAuthHeaders(token));
-export const createChapter = (data: any, token: string | null) => api.post('chapters', data, getAuthHeaders(token));
+export const createChapter = (id: string, data: any, token: string | null) => api.post(`books/${id}/chapters`, data, getAuthHeaders(token));
 export const updateChapter = (id: string, data: any, token: string | null) => api.put(`chapters/${id}`, data, getAuthHeaders(token));
 export const deleteChapter = (id: string, token: string | null) => api.delete(`chapters/${id}`, getAuthHeaders(token));
 

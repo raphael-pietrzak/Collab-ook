@@ -20,10 +20,7 @@ export default function ChaptersSidebar({ bookId }: { bookId: string }) {
     e.preventDefault();
     if (!newChapterTitle.trim()) return;
 
-    await addChapter({
-      bookId: DEMO_BOOK_ID,
-      title: newChapterTitle
-    }, token);
+    await addChapter(DEMO_BOOK_ID, { title: newChapterTitle }, token);
 
     setNewChapterTitle('');
     setIsAdding(false);

@@ -14,7 +14,7 @@ interface ChapterStore {
   chapters: Chapter[];
   fetchChapters: (token: string) => Promise<void>;
   fetchChapterById: (id: string, token: string) => Promise<Chapter | undefined>;
-  addChapter: (data: any, token: string) => Promise<void>;
+  addChapter: (id:string, data: any, token: string) => Promise<void>;
   updateChapter: (id: string, data: any, token: string) => Promise<void>;
   removeChapter: (id: string, token: string) => Promise<void>;
   isLoading: boolean;
@@ -48,10 +48,10 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     }
   },
 
-  addChapter: async (data: any, token: string) => {
+  addChapter: async (id:string, data: any, token: string) => {
     set({ isLoading: true, error: null });
     try {
-      await createChapter(data, token);
+      await createChapter(id, data, token);
       const response = await getChapters(token, data.bookId);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {

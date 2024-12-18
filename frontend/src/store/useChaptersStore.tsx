@@ -12,11 +12,11 @@ interface Chapter {
 
 interface ChapterStore {
   chapters: Chapter[];
-  fetchChapters: (token: string) => Promise<void>;
+  fetchChapters: (data: any, token: string) => Promise<void>;
   fetchChapterById: (id: string, token: string) => Promise<Chapter | undefined>;
   addChapter: (id:string, data: any, token: string) => Promise<void>;
   updateChapter: (id: string, data: any, token: string) => Promise<void>;
-  removeChapter: (id: string, token: string) => Promise<void>;
+  removeChapter: (id: string, data: any, token: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -26,10 +26,11 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
   isLoading: false,
   error: null,
 
-  fetchChapters: async (token: string) => {
+  fetchChapters: async (data: any, token: string) => {
+    console.log("fetchChapters : ", data, token);
     set({ isLoading: true, error: null });
     try {
-      const response = await getChapters("1", token);
+      const response = await getChapters(data.bookId, token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch chapters', isLoading: false });
@@ -48,11 +49,11 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     }
   },
 
-  addChapter: async (id:string, data: any, token: string) => {
+  addChapter: async (bookId:string, data: any, token: string) => {
     set({ isLoading: true, error: null });
     try {
-      await createChapter(id, data, token);
-      const response = await getChapters(token, data.bookId);
+      await createChapter(bookId, data, token);
+      const response = await getChapters(bookId, token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to add chapter', isLoading: false });
@@ -60,6 +61,7 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
   },
 
   updateChapter: async (id: string, data: any, token: string) => {
+    console.log("update chapters : ",data);
     set({ isLoading: true, error: null });
     try {
       await updateChapter(id, data, token);
@@ -70,11 +72,11 @@ export const useChaptersStore = create<ChapterStore>((set) => ({
     }
   },
 
-  removeChapter: async (id: string, token: string) => {
+  removeChapter: async (id: string, data:any, token: string) => {
     set({ isLoading: true, error: null });
     try {
       await deleteChapter(id, token);
-      const response = await getChapters("1", token);
+      const response = await getChapters(data.bookId, token);
       set({ chapters: response.data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to remove chapter', isLoading: false });

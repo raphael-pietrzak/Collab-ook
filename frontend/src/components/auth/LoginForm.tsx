@@ -69,6 +69,9 @@ export default function LoginForm() {
           <div className="text-red-600 text-sm">{error}</div>
         )}
 
+        <br />
+        <a href="/register" className="text-amber-600 hover:text-amber-700 font-medium text-sm transition duration-300 ease-in-out transform hover:scale-105" >Sign Up</a>
+
         <button
           type="submit"
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"

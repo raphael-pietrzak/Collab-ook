@@ -1,10 +1,7 @@
-// config/database.js:
+import knex from 'knex';
+import config from '../knexfile.js';
 
-const { Sequelize } = require('sequelize');
+const environment = process.env.NODE_ENV || 'development';
+const db = knex(config[environment]);
 
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: './local.db'
-});
-
-module.exports = sequelize;
+export default db;

@@ -49,6 +49,7 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center space-x-4">
                 <a href="/gallery" className="text-gray-600 hover:text-purple-600">Galerie</a>
+                <a href="/editor" className="text-gray-600 hover:text-purple-600">Editor</a>
                 <a href="/profile" className="text-gray-600 hover:text-purple-600 flex items-center space-x-2">
                   <User className="h-6 w-6" />
                   <span>Mon Profil</span>

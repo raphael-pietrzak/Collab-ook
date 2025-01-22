@@ -6,7 +6,8 @@ import RegisterForm from './components/auth/RegisterForm';
 import Editor from './pages/Editor';
 import Home from './pages/Home';
 import Gallery from './pages/BookGallery';
-import { SharedEditor } from './components/editor/SharedEditor';
+import SharedEditor from './components/editor/SharedEditor';
+import Document from './components/editor/Document';
 
 
 function App() {
@@ -38,10 +39,14 @@ function App() {
             path="/shared-editor/:chapterId" 
             element={
               <AuthenticatedRoute>
-                <SharedEditor />
+                <SharedEditor 
+                  selectedChapter={{id:'1', content:''}}
+                />
               </AuthenticatedRoute>
             }
           />
+
+          <Route path="/editor" element={<Document />} />
 
 
 

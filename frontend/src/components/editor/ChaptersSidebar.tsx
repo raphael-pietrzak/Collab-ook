@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useChaptersStore } from '../../store/useChaptersStore';
-import { Plus, Trash2, Edit2, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-
-export default function ChaptersSidebar({ bookId }: { bookId: string }) {
+export default function ChaptersSidebar({ bookId, onSelectChapter }: { bookId: string, onSelectChapter: (chapter: { id: string, content: string }) => void }) {
   const { chapters, isLoading, error, addChapter, removeChapter, fetchChapters } = useChaptersStore();
   const [isExpanded, setIsExpanded] = useState(true);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const navigate = useNavigate();
 
   const token = localStorage.getItem('token') || '';
 
@@ -29,6 +30,10 @@ export default function ChaptersSidebar({ bookId }: { bookId: string }) {
     if (window.confirm('Are you sure you want to delete this chapter?')) {
       await removeChapter(id, { bookId }, token);
     }
+  };
+
+  const handleChapterClick = (chapter: { id: string, content: string }) => {
+    onSelectChapter(chapter);
   };
 
   return (
@@ -65,24 +70,20 @@ export default function ChaptersSidebar({ bookId }: { bookId: string }) {
             {chapters.map((chapter) => (
               <div
                 key={chapter.id}
-                className="flex items-center justify-between p-2 rounded hover:bg-gray-100"
+                className="flex items-center justify-between p-2 rounded hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleChapterClick(chapter)}
               >
                 <span className="text-sm truncate">{chapter.title}</span>
-                <div className="flex space-x-1">
-                  <button
-                    className="p-1 hover:text-indigo-600"
-                    title="Edit chapter"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => chapter.id && handleRemoveChapter(chapter.id)}
-                    className="p-1 hover:text-red-600"
-                    title="Delete chapter"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    chapter.id && handleRemoveChapter(chapter.id);
+                  }}
+                  className="p-1 hover:text-red-600"
+                  title="Delete chapter"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))}
           </div>

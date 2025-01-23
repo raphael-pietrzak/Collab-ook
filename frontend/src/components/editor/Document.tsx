@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:3000');
 
+
 interface User {
   id: number;
   username: string;
@@ -25,6 +26,7 @@ function Document() {
   const [connectedUsers, setConnectedUsers] = useState([] as User[]);
   const [cursors, setCursors] = useState<CursorPosition[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const measureDivRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const initializeDocument = async () => {
@@ -33,7 +35,8 @@ function Document() {
           method: 'POST'
         });
         const document = await response.json();
-        setDocumentId(document.id);
+        console.log('Created document:', document);
+        setDocumentId(1);
 
         // Join document room
         socket.emit('join-document', {documentId: 1, userId:1});
@@ -66,10 +69,12 @@ function Document() {
     });
 
     socket.on('cursor-update', (cursorData: CursorPosition) => {
+      console.log('Cursor update:', cursorData);
       setCursors(prev => {
         const filtered = prev.filter(c => c.userId !== cursorData.userId);
         return [...filtered, cursorData];
       });
+      console.log('Cursor updated:', cursorData);
     });
 
     initializeDocument();
@@ -110,40 +115,76 @@ function Document() {
         line,
         column
       });
+
+      console.log('Selection changed:', { position, line, column });
     }
   };
 
+  const getCursorCoordinates = (position: number): { x: number; y: number } => {
+    if (!textareaRef.current || !measureDivRef.current) return { x: 0, y: 0 };
+
+    const text = textareaRef.current.value;
+    const textBeforeCursor = text.substring(0, position);
+    const lines = textBeforeCursor.split('\n');
+    
+    // Créer un span temporaire pour mesurer
+    const span = document.createElement('span');
+    span.textContent = lines[lines.length - 1];
+    
+    // Copier le style de textarea
+    const textareaStyle = window.getComputedStyle(textareaRef.current);
+    span.style.font = textareaStyle.font;
+    span.style.whiteSpace = 'pre';
+    
+    measureDivRef.current.appendChild(span);
+    const width = span.offsetWidth;
+    measureDivRef.current.removeChild(span);
+
+    // Calculer la hauteur de ligne
+    const lineHeight = parseInt(textareaStyle.lineHeight);
+    const top_margin = 42
+    const left_margin = 39
+
+    return {
+      x: width + left_margin,
+      y: (lines.length - 1) * lineHeight + top_margin
+    };
+  };
+
   const renderCursors = () => {
-    return cursors.map((cursor) => (
-      <div
-        key={cursor.userId}
-        style={{
-          position: 'absolute',
-          left: `${cursor.column * 8}px`,  // Approximation de la largeur du caractère
-          top: `${cursor.line * 20}px`,    // Approximation de la hauteur de ligne
-          width: '2px',
-          height: '20px',
-          backgroundColor: `hsl(${cursor.userId * 137.5 % 360}, 70%, 50%)`,
-          pointerEvents: 'none'
-        }}
-      >
+    return cursors.map((cursor) => {
+      const { x, y } = getCursorCoordinates(cursor.position);
+      return (
         <div
+          key={cursor.userId}
           style={{
             position: 'absolute',
-            top: '-20px',
-            left: '2px',
-            padding: '2px 6px',
+            left: `${x}px`,
+            top: `${y}px`,
+            width: '2px',
+            height: '20px',
             backgroundColor: `hsl(${cursor.userId * 137.5 % 360}, 70%, 50%)`,
-            color: 'white',
-            borderRadius: '3px',
-            fontSize: '12px',
-            whiteSpace: 'nowrap'
+            pointerEvents: 'none'
           }}
         >
-          {cursor.username}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-20px',
+              left: '2px',
+              padding: '2px 6px',
+              backgroundColor: `hsl(${cursor.userId * 137.5 % 360}, 70%, 50%)`,
+              color: 'white',
+              borderRadius: '3px',
+              fontSize: '12px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {cursor.username}
+          </div>
         </div>
-      </div>
-    ));
+      );
+    });
   };
 
   return (
@@ -187,6 +228,7 @@ function Document() {
             className="w-full h-[60vh] p-4 text-gray-800 border-0 focus:ring-0 resize-none"
             placeholder="Commencez à écrire ici..."
           />
+          <div ref={measureDivRef} style={{ position: 'absolute', visibility: 'hidden' }} />
           {renderCursors()}
         </div>
       </div>

@@ -26,10 +26,9 @@ const io = new Server(httpServer, {
   }
 });
 
-// Supprimez la ligne "await sequelize.sync();" car nous n'en avons plus besoin
-// L'initialisation de la base de données est gérée dans config/database.js
-
-io.on('connection', handleSocket.bind(null, io));
+io.on('connection', (socket) => {
+  handleSocket(io, socket);
+});
 
 const PORT = 3000;
 httpServer.listen(PORT, () => {

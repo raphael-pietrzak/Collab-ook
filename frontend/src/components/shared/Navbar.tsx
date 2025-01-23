@@ -39,6 +39,8 @@ export default function Navbar() {
                 <a href="#" className="text-gray-600 hover:text-purple-600">Découvrir</a>
                 <a href="#" className="text-gray-600 hover:text-purple-600">Défis</a>
                 <a href="#" className="text-gray-600 hover:text-purple-600">Premium</a>
+                <a href="/login" className="text-gray-600 hover:text-purple-600">Connexion</a>
+                <a href="/register" className="text-gray-600 hover:text-purple-600">Inscription</a>
                 <button
                   className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
                   onClick={() => window.location.href = '/gallery'}

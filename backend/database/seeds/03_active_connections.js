@@ -10,7 +10,7 @@ export async function seed(knex) {
   await knex('active_connections').insert([
     {
       user_id: users[0].id,
-      document_id: documents[0].id,
+      document_id: 1,
       socket_id: 'test-socket-1',
       cursor_position: 0,
       cursor_line: 0,
@@ -18,7 +18,7 @@ export async function seed(knex) {
     },
     {
       user_id: users[1].id,
-      document_id: documents[0].id,
+      document_id: 1,
       socket_id: 'test-socket-2',
       cursor_position: 10,
       cursor_line: 1,

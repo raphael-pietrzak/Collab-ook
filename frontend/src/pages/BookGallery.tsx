@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { Book, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BookCard from '../components/gallery/BookCard';
-import Navbar from '../components/shared/Navbar';
 
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -46,7 +45,6 @@ const BookGallery: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
-      <Navbar />
       <ToastContainer />
       <div className="container mx-auto px-4 py-8 pt-20">
         <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">

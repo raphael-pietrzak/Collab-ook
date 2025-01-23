@@ -34,6 +34,7 @@
     "react-router-dom": "^6.22.3",
     "react-toastify": "^10.0.6",
     "socket.io-client": "^4.8.1",
+    "textarea-caret-position": "^0.1.1",
     "y-websocket": "^2.0.4",
     "yjs": "^13.6.20",
     "zustand": "^5.0.1"

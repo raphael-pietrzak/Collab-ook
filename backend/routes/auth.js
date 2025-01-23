@@ -2,7 +2,6 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import e from 'cors';
 
 const router = express.Router();
 
@@ -44,7 +43,7 @@ router.post('/api/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id }, 'your-secret-key', { expiresIn: '24h' });
-    res.json({ token: token, userId: user.id });
+    res.json({ token });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

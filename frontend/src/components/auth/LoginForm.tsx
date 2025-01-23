@@ -27,7 +27,7 @@ export default function LoginForm() {
       console.log(data);
       console.log(localStorage.getItem('token'));
 
-      login(data.token, data.user);
+      login(data.token);
       navigate('/gallery');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

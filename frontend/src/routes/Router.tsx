@@ -8,6 +8,7 @@ import Gallery from '../pages/BookGallery';
 import SharedEditor from '../components/editor/SharedEditor';
 import Document from '../components/editor/Document';
 import Navbar from '../components/shared/Navbar';
+import Settings from '../pages/Setting';
 
 const Router = () => {
   return (
@@ -43,6 +44,14 @@ const Router = () => {
           }
         />
         <Route path="/editor" element={<Document />} />
+        <Route 
+          path="/settings" 
+          element={
+            <AuthenticatedRoute>
+              <Settings />
+            </AuthenticatedRoute>
+          }
+        />
       </Routes>
     </>
   );

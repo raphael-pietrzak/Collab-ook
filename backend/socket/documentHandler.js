@@ -1,27 +1,32 @@
 import Document from '../models/Document.js';
-import ActiveConnection from '../models/ActiveConnection.js';
-import db from '../config/database.js';
+
+const connectedUsers = new Map();
 
 export default function handleSocket(io, socket) {
-  console.log('Client connected');
+  console.log('Client connected:', socket.user);
+
+  const { documentId } = socket.handshake.query;
+  const user = socket.user;
 
   socket.on('join-document', async (data) => {
     console.log('Joining document:', data);
-    const { userId, documentId } = data;
 
-    
-    // Créer une nouvelle connexion active
-    await ActiveConnection.create({
-      user_id: userId,
-      document_id: documentId,
-      socket_id: socket.id
+    connectedUsers.set(user.id, {
+      socketId: socket.id,
+      username: user.username,
+      connectedAt: new Date()
     });
 
-    // Récupérer les utilisateurs connectés via le modèle
-    const connectedUsers = await ActiveConnection.findByDocumentId(documentId);
-
+    console.log('DOCUMENT ID:', documentId);
     socket.join(documentId);
-    io.to(documentId).emit('users-changed', connectedUsers);
+    console.log('Connected users:', connectedUsers);
+    
+    const usersArray = Array.from(connectedUsers.entries()).map(([id, userData]) => ({
+      userId: id,
+      username: userData.username
+    }));
+    
+    io.to(documentId).emit('users-changed', usersArray);
     
     const document = await Document.findByPk(documentId);
     if (document) {
@@ -51,46 +56,26 @@ export default function handleSocket(io, socket) {
     }
   });
 
-  socket.on('cursor-move', async (data) => {
-    try {
-      // Mettre à jour la position du curseur
-      await ActiveConnection.update(socket.id, {
-        cursor_position: data.position,
-        cursor_line: data.line,
-        cursor_column: data.column
-      });
-
-      const userConnection = await ActiveConnection.findBySocketId(socket.id);
-
-      if (userConnection) {
-        socket.to(data.documentId).emit
-          ('cursor-update', {
-          userId: userConnection.user_id,
-          username: userConnection.username,
-          position: data.position,
-          line: data.line,
-          column: data.column
-        });
-      }
-    } catch (error) {
-      console.error('Error updating cursor position:', error);
-    }
+  socket.on('cursor-move', (data) => {
+    socket.broadcast.emit('cursor_position_update', {
+      userId: user.id,
+      username: user.username,
+      cursor_position: data.position,
+      cursor_line: data.line,
+      cursor_column: data.column
+    });
   });
 
   socket.on('disconnect', async () => {
     try {
-      // Récupérer la connexion avant de la supprimer
-      const connection = await ActiveConnection.findBySocketId(socket.id);
+      connectedUsers.delete(user.id);
       
-      // Supprimer la connexion active
-      await ActiveConnection.deleteBySocketId(socket.id);
+      const usersArray = Array.from(connectedUsers.entries()).map(([id, userData]) => ({
+        userId: id,
+        username: userData.username
+      }));
       
-      if (connection) {
-        // Récupérer la liste mise à jour des utilisateurs connectés
-        const connectedUsers = await ActiveConnection.findByDocumentId(connection.document_id);
-        io.to(connection.document_id).emit('users-changed', connectedUsers);
-      }
-
+      io.to(documentId).emit('users-changed', usersArray);
       console.log('Client disconnected');
     } catch (error) {
       console.error('Error handling disconnect:', error);

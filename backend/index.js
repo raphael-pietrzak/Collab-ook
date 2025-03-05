@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import documentRoutes from './routes/documents.js';
 import authRoutes from './routes/auth.js';
 import handleSocket from './socket/documentHandler.js';
@@ -28,10 +29,23 @@ const io = new Server(httpServer, {
   }
 });
 
+// Middleware socket pour authentifier l'utilisateur
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error("Authentication error"));
+  }
+
+  try {
+    const user = jwt.verify(token, 'your-secret-key');
+    socket.user = user;
+    next();
+  } catch (err) {
+    next(new Error("Authentication error"));
+  }
+});
 
 io.on('connection', (socket) => {
-  // set user to socket
-
   handleSocket(io, socket);
 });
 

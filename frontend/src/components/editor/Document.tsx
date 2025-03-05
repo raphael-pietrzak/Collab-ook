@@ -34,6 +34,7 @@ function Document() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measureDivRef = useRef<HTMLDivElement>(null);
   const { token } = useAuth();
+  const [showUsersList, setShowUsersList] = useState(false);
 
   useEffect(() => {
     const initializeDocument = async () => {
@@ -46,7 +47,7 @@ function Document() {
         setDocumentId(1);
 
         // Join document room
-        socket.emit('join-document', {documentId: 1, token});
+        socket.emit('join-document', {documentId: 1, userId: 1});
       } catch (error) {
         console.error('Error creating document:', error);
       }
@@ -93,6 +94,20 @@ function Document() {
       socket.off('document-updated');
       socket.off('users-changed');
       socket.off('cursor-update');
+    };
+  }, []);
+
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.users-popup') && !target.closest('.users-button')) {
+      setShowUsersList(false);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -210,11 +225,36 @@ function Document() {
                 {isConnected ? 'Connecté' : 'Déconnecté'}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4" />
-              <span className="text-sm text-gray-600">
-                {connectedUsers.length} utilisateurs connectés
-              </span>
+            <div className="flex items-center space-x-2 relative">
+              <button 
+                className="users-button flex items-center space-x-2 hover:bg-gray-100 p-2 rounded-md transition-colors"
+                onClick={() => setShowUsersList(!showUsersList)}
+              >
+                <Users className="w-4 h-4" />
+                <span className="text-sm text-gray-600">
+                  {connectedUsers.length} en ligne
+                </span>
+              </button>
+              
+              {showUsersList && (
+                <div className="users-popup absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                  <div className="p-2">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-2">
+                      Utilisateurs connectés
+                    </h3>
+                    <ul className="space-y-1">
+                      {connectedUsers.map(user => (
+                        <li 
+                          key={user.id}
+                          className="text-sm text-gray-600 py-1 px-2 hover:bg-gray-50 rounded"
+                        >
+                          {user.username}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
             {lastSaved && (
               <div className="flex items-center text-sm text-gray-600">
@@ -232,7 +272,7 @@ function Document() {
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
             onSelect={handleSelectionChange}
-            className="w-full h-[60vh] p-4 text-gray-800 border-0 focus:ring-0 resize-none"
+            className="w-full h-[60vh] p-4 text-gray-800 border-0 focus:ring-0 outline-none resize-none"
             placeholder="Commencez à écrire ici..."
           />
           <div ref={measureDivRef} style={{ position: 'absolute', visibility: 'hidden' }} />

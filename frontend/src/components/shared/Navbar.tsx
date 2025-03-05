@@ -1,21 +1,16 @@
-import React, { useState, useEffect } from 'react';
 import { BookOpenCheck, User } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+// import logo.svg
+import logo from '../../assets/logo.svg';
 
 export default function Navbar() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // Vérifier si l'utilisateur est connecté (par exemple via un token dans localStorage)
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsLoggedIn(true);
-    }
-  }, []);
+  const { token, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('token'); // Supprimer le token pour déconnecter
-    setIsLoggedIn(false);
-    window.location.href = '/'; // Rediriger vers la page d'accueil
+    logout();
+    navigate('/');
   };
 
   return (
@@ -23,25 +18,22 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <BookOpenCheck className="h-8 w-8 text-purple-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent hover:from-purple-500 hover:to-indigo-500 cursor-pointer"
-              onClick={() => window.location.href = '/'}
-            >
-              Collab'ook
-            </span>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
+            <img src={logo} alt="Bookshelf" className="h-28" />
           </div>
 
           {/* Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {!isLoggedIn ? (
+            {!token ? (
               <>
                 <a href="#" className="text-gray-600 hover:text-purple-600">Découvrir</a>
                 <a href="#" className="text-gray-600 hover:text-purple-600">Défis</a>
                 <a href="#" className="text-gray-600 hover:text-purple-600">Premium</a>
+                <a href="/login" className="text-gray-600 hover:text-purple-600">Connexion</a>
+                <a href="/register" className="text-gray-600 hover:text-purple-600">Inscription</a>
                 <button
                   className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-                  onClick={() => window.location.href = '/gallery'}
+                  onClick={() => navigate('/gallery')}
                 >
                   Commencer
                 </button>
@@ -49,6 +41,7 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center space-x-4">
                 <a href="/gallery" className="text-gray-600 hover:text-purple-600">Galerie</a>
+                <a href="/editor" className="text-gray-600 hover:text-purple-600">Editor</a>
                 <a href="/profile" className="text-gray-600 hover:text-purple-600 flex items-center space-x-2">
                   <User className="h-6 w-6" />
                   <span>Mon Profil</span>

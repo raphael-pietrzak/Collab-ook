@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import { Book, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BookCard from '../components/gallery/BookCard';
-import Navbar from '../components/shared/Navbar';
 
-import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useBooksStore } from '../store/useBooksStore';
 
@@ -34,11 +32,6 @@ const BookGallery: React.FC = () => {
     fetchAllBooks();
   }, [fetchBooks]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handleAddBook = async () => {
     await addBook({ title: 'TITRE', author: 'Moi', progress: 20 }, token);
@@ -46,8 +39,6 @@ const BookGallery: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
-      <Navbar />
-      <ToastContainer />
       <div className="container mx-auto px-4 py-8 pt-20">
         <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">
           Livres en Cours d'Écriture
@@ -67,7 +58,7 @@ const BookGallery: React.FC = () => {
           </div>
         ) : error ? (
           <div className="text-red-500 text-center p-4">
-            <BookOpen className="mx-auto mb-4" size={48} />
+            <BookOpen className="mx-auto mb-4" size={18} />
             <p>Erreur de chargement : {error}</p>
           </div>
         ) : books.length === 0 ? (

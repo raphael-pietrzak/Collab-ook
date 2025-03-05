@@ -18,7 +18,7 @@ export default function LoginForm() {
       const response = await fetch(apiUrl + 'api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ login: email, password: password }),
       });
 
       const data = await response.json();
@@ -27,7 +27,7 @@ export default function LoginForm() {
       console.log(data);
       console.log(localStorage.getItem('token'));
 
-      login(data.token, data.user);
+      login(data.token);
       navigate('/gallery');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
@@ -39,10 +39,9 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
+            Email ou nom d'utilisateur
           </label>
           <input
-            type="email"
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

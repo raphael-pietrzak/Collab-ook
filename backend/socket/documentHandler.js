@@ -1,25 +1,23 @@
 import Document from '../models/Document.js';
 
 const connectedUsers = new Map();
+const documentVersions = new Map(); // Pour suivre la version de chaque document
 
 export default function handleSocket(io, socket) {
   console.log('Client connected:', socket.user);
 
-  const { documentId } = socket.handshake.query;
   const user = socket.user;
 
   socket.on('join-document', async (data) => {
-    console.log('Joining document:', data);
+    const { documentId } = data;
 
-    connectedUsers.set(user.id, {
+    connectedUsers.set(user.userId, {
       socketId: socket.id,
       username: user.username,
       connectedAt: new Date()
     });
 
-    console.log('DOCUMENT ID:', documentId);
     socket.join(documentId);
-    console.log('Connected users:', connectedUsers);
     
     const usersArray = Array.from(connectedUsers.entries()).map(([id, userData]) => ({
       userId: id,
@@ -30,25 +28,34 @@ export default function handleSocket(io, socket) {
     
     const document = await Document.findByPk(documentId);
     if (document) {
+      const currentVersion = documentVersions.get(documentId) || 0;
       socket.emit('load-document', {
         content: document.content,
-        lastUpdated: document.lastUpdated
+        lastUpdated: document.lastUpdated,
+        version: currentVersion
       });
     }
   });
 
-  socket.on('update-document', async ({ documentId, content }) => {
+  socket.on('update-document', async ({ documentId, content, operation, version }) => {
     try {
-      await Document.update(documentId, {
-        content,
-        lastUpdated: new Date()
-      });
+      const currentVersion = documentVersions.get(documentId) || 0;
       
-      const updatedDoc = await Document.findByPk(documentId);
-      if (updatedDoc) {
-        io.to(documentId).emit('document-updated', {
-          content: updatedDoc.content,
-          lastUpdated: updatedDoc.lastUpdated
+      // Mettre à jour la version même si elle n'est pas strictement supérieure
+      if (version >= currentVersion) {
+        documentVersions.set(documentId, version);
+        
+        await Document.update(documentId, {
+          content,
+          lastUpdated: new Date()
+        });
+        
+        // Propager à tous les clients sauf l'émetteur
+        socket.broadcast.to(documentId).emit('document-updated', {
+          content,
+          lastUpdated: new Date(),
+          operation,
+          version
         });
       }
     } catch (error) {
@@ -57,8 +64,9 @@ export default function handleSocket(io, socket) {
   });
 
   socket.on('cursor-move', (data) => {
-    socket.broadcast.emit('cursor_position_update', {
-      userId: user.id,
+    console.log('Cursor move:', data);
+    socket.broadcast.emit('cursor-update', {
+      userId: user.userId,
       username: user.username,
       cursor_position: data.position,
       cursor_line: data.line,
@@ -68,7 +76,7 @@ export default function handleSocket(io, socket) {
 
   socket.on('disconnect', async () => {
     try {
-      connectedUsers.delete(user.id);
+      connectedUsers.delete(user.userId);
       
       const usersArray = Array.from(connectedUsers.entries()).map(([id, userData]) => ({
         userId: id,

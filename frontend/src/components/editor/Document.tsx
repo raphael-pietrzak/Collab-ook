@@ -1,8 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Users, Save } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { useAuth } from '../../context/AuthContext';
 
-const socket = io('http://localhost:3000');
+
+const socket = io('http://localhost:3000', {
+  auth: { token:
+    localStorage.getItem('token')
+  }
+});
 
 
 interface User {
@@ -27,6 +33,7 @@ function Document() {
   const [cursors, setCursors] = useState<CursorPosition[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measureDivRef = useRef<HTMLDivElement>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
     const initializeDocument = async () => {
@@ -39,7 +46,7 @@ function Document() {
         setDocumentId(1);
 
         // Join document room
-        socket.emit('join-document', {documentId: 1, userId:1});
+        socket.emit('join-document', {documentId: 1, token});
       } catch (error) {
         console.error('Error creating document:', error);
       }

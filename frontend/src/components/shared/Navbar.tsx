@@ -1,6 +1,8 @@
 import { BookOpenCheck, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+// import logo.svg
+import logo from '../../assets/logo.svg';
 
 export default function Navbar() {
   const { token, logout } = useAuth();
@@ -16,13 +18,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <BookOpenCheck className="h-8 w-8 text-purple-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent hover:from-purple-500 hover:to-indigo-500 cursor-pointer"
-              onClick={() => navigate('/')}
-            >
-              Collab'ook
-            </span>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
+            <img src={logo} alt="Bookshelf" className="h-28" />
           </div>
 
           {/* Navigation */}

@@ -6,7 +6,9 @@ export default function handleSocket(io, socket) {
   console.log('Client connected');
 
   socket.on('join-document', async (data) => {
-    const { documentId, userId } = data;
+    console.log('Joining document:', data);
+    const { userId, documentId } = data;
+
     
     // Créer une nouvelle connexion active
     await ActiveConnection.create({
@@ -19,7 +21,6 @@ export default function handleSocket(io, socket) {
     const connectedUsers = await ActiveConnection.findByDocumentId(documentId);
 
     socket.join(documentId);
-    console.log('Connected users:', connectedUsers);
     io.to(documentId).emit('users-changed', connectedUsers);
     
     const document = await Document.findByPk(documentId);
@@ -52,7 +53,6 @@ export default function handleSocket(io, socket) {
 
   socket.on('cursor-move', async (data) => {
     try {
-      console.log('Cursor moved:', data);
       // Mettre à jour la position du curseur
       await ActiveConnection.update(socket.id, {
         cursor_position: data.position,
@@ -62,7 +62,6 @@ export default function handleSocket(io, socket) {
 
       const userConnection = await ActiveConnection.findBySocketId(socket.id);
 
-      console.log('User connection:', userConnection);
       if (userConnection) {
         socket.to(data.documentId).emit
           ('cursor-update', {

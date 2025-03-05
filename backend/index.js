@@ -5,6 +5,7 @@ import cors from 'cors';
 import documentRoutes from './routes/documents.js';
 import authRoutes from './routes/auth.js';
 import handleSocket from './socket/documentHandler.js';
+import bookRoutes from './routes/books.js';
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(bookRoutes);
 app.use(documentRoutes);
 app.use(authRoutes);
 
@@ -26,7 +28,10 @@ const io = new Server(httpServer, {
   }
 });
 
+
 io.on('connection', (socket) => {
+  // set user to socket
+
   handleSocket(io, socket);
 });
 

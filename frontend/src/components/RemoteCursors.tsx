@@ -1,241 +1,188 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { editor } from 'monaco-editor';
 import { ConnectedUser } from '../types/document';
-import { stringToColor, getContrastTextColor } from '../utils/colorUtils';
-
-// Interface pour les curseurs décorés
-interface CursorDecoration {
-  userId: string;
-  username: string;
-  decorationIds: string[];
-  color: string;
-}
+import { generateUserColor, getContrastTextColor } from '../utils/colorUtils';
 
 interface RemoteCursorsProps {
   editor: editor.IStandaloneCodeEditor | null;
-  connectedUsers: ConnectedUser[];
+  users: ConnectedUser[];
   currentUserId: string;
 }
 
-const RemoteCursors: React.FC<RemoteCursorsProps> = ({ 
-  editor, 
-  connectedUsers,
-  currentUserId
-}) => {
-  const [decorations, setDecorations] = useState<CursorDecoration[]>([]);
+interface CursorDecoration {
+  userId: string;
+  decorationId?: string;
+  color: string;
+}
 
-  // Mettre à jour les décorations lorsque les utilisateurs ou leurs positions de curseur changent
+const RemoteCursors: React.FC<RemoteCursorsProps> = ({ editor, users, currentUserId }) => {
+  // Garder une trace des décorations pour pouvoir les supprimer plus tard
+  const decorationsRef = useRef<CursorDecoration[]>([]);
+
   useEffect(() => {
-    if (!editor) {
-      console.log('Editor not ready yet');
-      return;
-    }
-    
-    // Log plus détaillé des utilisateurs connectés
-    console.log('All connected users:', connectedUsers);
-    
-    // Filtre les autres utilisateurs qui ont une position de curseur
-    const otherUsers = connectedUsers.filter(user => 
-      user.userId !== currentUserId && 
-      user.cursor_line !== undefined && 
-      user.cursor_column !== undefined
-    );
-    
-    console.log('Remote users with cursor positions:', otherUsers);
-    
-    // Si aucun utilisateur avec position, on arrête là
-    if (otherUsers.length === 0) {
-      console.log('No remote users with cursor positions found');
-      return;
-    }
+    if (!editor) return;
 
-    // Supprimer les anciennes décorations
-    const oldDecorations = decorations.flatMap(d => d.decorationIds);
-    if (oldDecorations.length > 0) {
-      editor.deltaDecorations(oldDecorations, []);
-    }
-
-    // Créer de nouvelles décorations pour chaque utilisateur
-    const newDecorations: CursorDecoration[] = [];
-    
-    otherUsers.forEach(user => {
-      try {
-        const color = stringToColor(user.userId);
-        const textColor = getContrastTextColor(color);
-        
-        console.log(`Adding cursor for ${user.username} at line ${user.cursor_line}, column ${user.cursor_column}`);
-        
-        // Position du curseur: ligne verticale
-        const cursorPosition = {
-          range: {
-            startLineNumber: user.cursor_line!,
-            startColumn: user.cursor_column!,
-            endLineNumber: user.cursor_line!,
-            endColumn: user.cursor_column!
-          },
-          options: {
-            className: 'remote-cursor',
-            hoverMessage: {
-              value: user.username,
-              isTrusted: true
-            },
-            zIndex: 100,
-            beforeContentClassName: `remote-cursor-line ${user.userId}-cursor`,
-          }
-        };
-        
-        // Badge avec le nom d'utilisateur
-        const nameBadge = {
-          range: {
-            startLineNumber: user.cursor_line!,
-            startColumn: user.cursor_column!,
-            endLineNumber: user.cursor_line!,
-            endColumn: user.cursor_column!
-          },
-          options: {
-            afterContentClassName: `remote-cursor-badge ${user.userId}-badge`,
-            after: {
-              content: user.username, // Utiliser le nom d'utilisateur, pas l'ID
-              isTrusted: true
-            }
-          }
-        };
-        
-        // Appliquer les décorations
-        const ids = editor.deltaDecorations(
-          [], 
-          [cursorPosition, nameBadge]
-        );
-        
-        console.log(`Applied decorations with IDs: ${ids.join(', ')}`);
-        
-        // Ajouter au CSS dynamique
-        addCursorStyle(user.userId, color, textColor, user.username);
-        
-        // Déclaration de la variable manquante
-        const cursorDecorations: string[] = [];
-        cursorDecorations.push(...ids);
-        
-        newDecorations.push({
-          userId: user.userId,
-          username: user.username,
-          decorationIds: cursorDecorations,
-          color
-        });
-      } catch (error) {
-        console.error("Erreur lors de l'ajout du curseur pour " + user.username, error);
-      }
-    });
-    
-    setDecorations(newDecorations);
-    console.log(`Registered ${newDecorations.length} cursors`);
-    
-    // Nettoyer les styles à la déconnexion
-    return () => {
-      decorations.forEach(deco => {
-        removeCursorStyle(deco.userId);
-      });
-    };
-  }, [editor, connectedUsers, currentUserId]);
-
-  // Mécanisme de test - ajouter un curseur de test si aucun n'est trouvé
-  useEffect(() => {
-    if (connectedUsers.length > 0 && editor) {
-      const othersWithCursor = connectedUsers.filter(u => 
-        u.userId !== currentUserId && 
-        u.cursor_line !== undefined && 
-        u.cursor_column !== undefined
+    // Fonction pour créer/mettre à jour les décorations
+    const updateCursors = () => {
+      if (!editor) return;
+      
+      const model = editor.getModel();
+      if (!model) return;
+      
+      // Filtrer les utilisateurs (exclure l'utilisateur actuel et ceux sans position de curseur)
+      const remoteUsers = users.filter(user => 
+        user.userId !== currentUserId && 
+        user.cursor_line >= 0 && 
+        user.cursor_column >= 0
       );
       
-      if (othersWithCursor.length === 0) {
-        console.log("Aucun utilisateur avec position de curseur trouvé - vérification du pipeline de données");
+      console.log('Updating remote cursors for users:', remoteUsers.map(u => u.username));
+      
+      // Supprimer les anciennes décorations
+      if (decorationsRef.current.length > 0) {
+        const oldDecorationIds = decorationsRef.current
+          .map(d => d.decorationId)
+          .filter((id): id is string => id !== undefined);
         
-        // Afficher un indicateur visuel pour le débogage
-        try {
-          const editorElement = editor.getDomNode();
-          if (editorElement) {
-            const infoDiv = document.createElement('div');
-            infoDiv.id = 'cursor-debug-info';
-            infoDiv.style.position = 'absolute';
-            infoDiv.style.top = '0';
-            infoDiv.style.right = '0';
-            infoDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
-            infoDiv.style.color = 'white';
-            infoDiv.style.padding = '5px';
-            infoDiv.style.zIndex = '1000';
-            infoDiv.style.fontSize = '12px';
-            infoDiv.textContent = `${connectedUsers.length} utilisateurs connectés, aucune position de curseur reçue`;
-            
-            // Supprimer l'élément s'il existe déjà
-            const existingInfo = document.getElementById('cursor-debug-info');
-            if (existingInfo) existingInfo.remove();
-            
-            editorElement.appendChild(infoDiv);
-            
-            // Supprimer après 5 secondes
-            setTimeout(() => {
-              const element = document.getElementById('cursor-debug-info');
-              if (element) element.remove();
-            }, 5000);
-          }
-        } catch (error) {
-          console.error("Erreur lors de l'affichage de l'info de débogage", error);
+        if (oldDecorationIds.length > 0) {
+          editor.deltaDecorations(oldDecorationIds, []);
         }
       }
-    }
-  }, [connectedUsers, editor, currentUserId]);
-
-  // Ajouter des styles CSS pour les curseurs
-  const addCursorStyle = (userId: string, bgColor: string, textColor: string, username: string) => {
-    const styleId = `cursor-style-${userId}`;
-    
-    // Supprimer l'ancien style s'il existe
-    removeCursorStyle(userId);
-    
-    // Créer un nouvel élément style
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.innerHTML = `
-      .${userId}-cursor::before {
-        content: '';
-        position: absolute;
-        display: inline-block;
-        width: 2px !important;
-        height: 18px !important;
-        background-color: ${bgColor} !important;
-        z-index: 1000 !important;
+      
+      // Créer les nouvelles décorations
+      const newDecorations: CursorDecoration[] = [];
+      const decorationOptions: editor.IModelDeltaDecoration[] = [];
+      
+      remoteUsers.forEach(user => {
+        try {
+          const position = {
+            lineNumber: user.cursor_line,
+            column: user.cursor_column
+          };
+          
+          // Générer une couleur unique pour cet utilisateur
+          const userColor = generateUserColor(user.userId);
+          const textColor = getContrastTextColor(userColor);
+          
+          // Créer les options de décoration (curseur + étiquette)
+          decorationOptions.push({
+            range: new monaco.Range(
+              position.lineNumber,
+              position.column,
+              position.lineNumber,
+              position.column
+            ),
+            options: {
+              className: 'remote-cursor-line',
+              glyphMarginClassName: 'remote-cursor-gutter',
+              hoverMessage: { value: `${user.username} est ici` },
+              // Curseur vertical coloré
+              beforeContentClassName: `remote-cursor-before remote-cursor-${user.userId.replace(/[^a-zA-Z0-9]/g, '')}`,
+              // Marqueur de curseur avec nom
+              after: {
+                content: ` ${user.username}`,
+                inlineClassName: `remote-cursor-label remote-cursor-label-${user.userId.replace(/[^a-zA-Z0-9]/g, '')}`
+              },
+              // Style spécifique pour ce curseur (injecté via styleElement)
+              stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+            }
+          });
+          
+          // Ajouter le style personnalisé pour ce curseur dans le DOM
+          addCursorStyle(user.userId, userColor, textColor);
+          
+          // Mémoriser cette décoration
+          newDecorations.push({
+            userId: user.userId,
+            color: userColor
+          });
+          
+        } catch (error) {
+          console.error('Erreur lors de la création de décoration de curseur:', error);
+        }
+      });
+      
+      // Appliquer les décorations
+      if (decorationOptions.length > 0) {
+        const decorationIds = editor.deltaDecorations([], decorationOptions);
+        
+        // Mettre à jour les références avec les IDs
+        newDecorations.forEach((dec, index) => {
+          dec.decorationId = decorationIds[index];
+        });
       }
       
-      .${userId}-badge::after {
-        content: "${username}" !important;
-        background-color: ${bgColor} !important;
-        color: ${textColor} !important;
-        font-size: 12px !important;
-        padding: 2px 4px !important;
-        border-radius: 3px !important;
-        margin-left: 4px !important;
-        position: absolute !important;
-        top: -18px !important;
-        left: 0 !important;
-        white-space: nowrap !important;
-        z-index: 1000 !important;
-      }
-    `;
-    
-    document.head.appendChild(styleEl);
-    console.log(`Added style for user ${username} with ID ${userId}`);
-  };
-  
-  // Supprimer le style CSS d'un curseur
-  const removeCursorStyle = (userId: string) => {
-    const styleId = `cursor-style-${userId}`;
-    const existingStyle = document.getElementById(styleId);
-    if (existingStyle) {
-      existingStyle.remove();
-    }
-  };
+      // Mettre à jour notre référence
+      decorationsRef.current = newDecorations;
+    };
 
-  return null; // Composant sans rendu visuel (ajoute des décorations directement à l'éditeur)
+    // Fonction pour ajouter le style CSS pour un curseur
+    const addCursorStyle = (userId: string, backgroundColor: string, textColor: string) => {
+      const sanitizedId = userId.replace(/[^a-zA-Z0-9]/g, '');
+      const styleId = `cursor-style-${sanitizedId}`;
+      
+      // Supprimer le style existant s'il existe
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      
+      // Créer un nouvel élément de style
+      const styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      styleElement.innerHTML = `
+        .remote-cursor-${sanitizedId} {
+          border-left: 2px solid ${backgroundColor};
+          border-radius: 0;
+          margin-left: -1px;
+        }
+        .remote-cursor-label-${sanitizedId} {
+          background-color: ${backgroundColor};
+          color: ${textColor};
+          padding: 0 4px;
+          border-radius: 3px;
+          font-size: 12px;
+          font-weight: bold;
+          white-space: nowrap;
+          position: relative;
+          top: -1px;
+        }
+      `;
+      
+      // Ajouter le style au document
+      document.head.appendChild(styleElement);
+    };
+
+    // Mettre à jour les curseurs initialement et à chaque changement
+    updateCursors();
+    
+    // Nettoyer les styles et décorations lors du démontage
+    return () => {
+      if (decorationsRef.current.length > 0) {
+        // Supprimer les décorations de l'éditeur
+        const oldDecorationIds = decorationsRef.current
+          .map(d => d.decorationId)
+          .filter((id): id is string => id !== undefined);
+        
+        if (editor && oldDecorationIds.length > 0) {
+          editor.deltaDecorations(oldDecorationIds, []);
+        }
+      }
+      
+      // Supprimer les éléments de style
+      users.forEach(user => {
+        const sanitizedId = user.userId.replace(/[^a-zA-Z0-9]/g, '');
+        const styleId = `cursor-style-${sanitizedId}`;
+        const styleElement = document.getElementById(styleId);
+        if (styleElement) {
+          styleElement.remove();
+        }
+      });
+    };
+  }, [editor, users, currentUserId]);
+
+  // Ce composant ne rend rien visuellement - tout est géré via l'API Monaco
+  return null;
 };
 
 export default RemoteCursors;

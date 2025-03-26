@@ -39,6 +39,8 @@ export const useDocumentSocket = ({
   
   const socketRef = useRef<Socket | null>(null);
   const versionRef = useRef<number>(0);
+  const pendingCursorUpdatesRef = useRef<CursorPosition[]>([]);
+  const reconnectingRef = useRef<boolean>(false);
   
   // Initialiser la connexion socket
   useEffect(() => {
@@ -47,6 +49,8 @@ export const useDocumentSocket = ({
       return;
     }
     
+    console.log(`[Socket] Initializing connection to ${serverUrl} for doc ${documentId}`);
+    
     // Créer la connexion socket avec authentification
     const socket = io(serverUrl, {
       auth: {
@@ -54,7 +58,10 @@ export const useDocumentSocket = ({
       },
       query: {
         documentId
-      }
+      },
+      reconnectionAttempts: 5,  // Essayer 5 fois de se reconnecter
+      reconnectionDelay: 1000,  // Attendre 1 seconde entre chaque tentative
+      timeout: 10000            // Timeout de 10 secondes
     });
     
     socketRef.current = socket;
@@ -64,18 +71,45 @@ export const useDocumentSocket = ({
       setIsConnected(true);
       setError(null);
       socket.emit('join-document', { documentId });
-      console.log(`Connected to document ${documentId}`);
+      console.log(`[Socket] Connected to document ${documentId}`);
+      
+      // Si nous nous reconnectons, envoyer les positions de curseur en attente
+      if (reconnectingRef.current) {
+        console.log('[Socket] Reconnected, sending pending cursor updates');
+        reconnectingRef.current = false;
+        
+        // Envoyer uniquement la dernière position de curseur en attente
+        if (pendingCursorUpdatesRef.current.length > 0) {
+          const lastPosition = pendingCursorUpdatesRef.current[pendingCursorUpdatesRef.current.length - 1];
+          setTimeout(() => {
+            if (socketRef.current && isConnected) {
+              updateCursorPosition(lastPosition);
+              console.log('[Socket] Sent pending cursor position after reconnection');
+            }
+          }, 1000); // Attendre 1 seconde pour s'assurer que la connexion est stable
+          
+          // Vider la file d'attente
+          pendingCursorUpdatesRef.current = [];
+        }
+      }
+    });
+    
+    socket.on('reconnect_attempt', (attempt) => {
+      console.log(`[Socket] Attempting to reconnect (${attempt})`);
+      reconnectingRef.current = true;
     });
     
     socket.on('connect_error', (err) => {
       console.error('Connection error', err);
       setError(`Erreur de connexion: ${err.message}`);
       setIsConnected(false);
+      reconnectingRef.current = true;
     });
     
     socket.on('disconnect', () => {
       setIsConnected(false);
       console.log('Disconnected from server');
+      reconnectingRef.current = true;
     });
     
     // Chargement initial du document
@@ -85,23 +119,35 @@ export const useDocumentSocket = ({
       console.log('Document loaded, version:', docData.version);
     });
     
-    // Mise à jour des utilisateurs connectés
+    // Mise à jour des utilisateurs connectés avec journalisation améliorée
     socket.on('users-changed', (users: ConnectedUser[]) => {
-
-      console.log('Raw users-changed event data:', users);
+      console.log('[Socket] Received users-changed event with data:', users);
+      
+      if (!Array.isArray(users)) {
+        console.error('[Socket] Invalid users data received:', users);
+        return;
+      }
       
       // S'assurer que les données utilisateur sont complètes
       const processedUsers = users.map(user => ({
-        ...user,
-        // Fournir des valeurs par défaut si nécessaires
-        cursor_position: user.cursor_position !== undefined ? user.cursor_position : undefined,
-        cursor_line: user.cursor_line !== undefined ? user.cursor_line : undefined,
-        cursor_column: user.cursor_column !== undefined ? user.cursor_column : undefined,
+        userId: user.userId || '',
+        username: user.username || 'Unknown',
+        cursor_position: user.cursor_position !== undefined ? user.cursor_position : -1,
+        cursor_line: user.cursor_line !== undefined ? user.cursor_line : -1,
+        cursor_column: user.cursor_column !== undefined ? user.cursor_column : -1,
       }));
       
       setConnectedUsers(processedUsers);
-      console.log('Users updated:', processedUsers.length, 'connected');
-      console.log('Users with cursor data:', processedUsers.filter(u => u.cursor_line !== undefined).length);
+      
+      const usersWithCursor = processedUsers.filter(
+        u => u.cursor_line >= 0 && u.cursor_column >= 0
+      );
+      
+      console.log(`[Socket] Users updated: ${processedUsers.length} connected, ${usersWithCursor.length} with cursor data`);
+      
+      if (usersWithCursor.length > 0) {
+        console.log('[Socket] Users with cursor positions:', usersWithCursor);
+      }
     });
     
     // Mise à jour du document en temps réel
@@ -137,34 +183,53 @@ export const useDocumentSocket = ({
       socket.emit('join-document', { documentId });
     });
     
-    // Mise à jour des curseurs des autres utilisateurs - rendre le traitement plus robuste
+    // Réception améliorée des mises à jour de curseur
     socket.on('cursor-update', (userData: ConnectedUser) => {
-      console.log('Received cursor update:', userData);
+      console.log('[Socket] Received cursor update:', userData);
       
-      // Vérifier que les données du curseur sont présentes et valides
-      if (userData && userData.userId && (userData.cursor_line !== undefined || userData.cursor_column !== undefined)) {
-        setConnectedUsers(prev => {
-          // Vérifier si l'utilisateur existe déjà
-          const existingUserIndex = prev.findIndex(u => u.userId === userData.userId);
-          
-          if (existingUserIndex >= 0) {
-            // Créer une nouvelle array avec l'utilisateur mis à jour
-            const newUsers = [...prev];
-            newUsers[existingUserIndex] = {
-              ...newUsers[existingUserIndex],
-              ...userData
-            };
-            console.log(`Updated cursor for user ${userData.username} at index ${existingUserIndex}`);
-            return newUsers;
-          } else {
-            // Ajouter le nouvel utilisateur
-            console.log(`Adding new user from cursor update: ${userData.username}`);
-            return [...prev, userData];
-          }
-        });
-      } else {
-        console.warn('Received invalid cursor update data:', userData);
+      // Vérifications de base
+      if (!userData || !userData.userId) {
+        console.error('[Socket] Invalid cursor update received:', userData);
+        return;
       }
+      
+      // Ignorer nos propres mises à jour
+      if (userData.userId === userId) {
+        console.log('[Socket] Ignoring our own cursor update');
+        return;
+      }
+      
+      // Vérifier la validité des données de position
+      if (userData.cursor_line === undefined || userData.cursor_column === undefined) {
+        console.warn('[Socket] Cursor update missing position data:', userData);
+        return;
+      }
+
+      // Mise à jour de la liste des utilisateurs
+      setConnectedUsers(prev => {
+        // Chercher l'utilisateur dans la liste actuelle
+        const existingUserIndex = prev.findIndex(u => u.userId === userData.userId);
+        
+        // Nouvelle liste d'utilisateurs
+        const newUsers = [...prev];
+        
+        if (existingUserIndex >= 0) {
+          // Mettre à jour l'utilisateur existant
+          newUsers[existingUserIndex] = {
+            ...newUsers[existingUserIndex],
+            cursor_position: userData.cursor_position || 0,
+            cursor_line: userData.cursor_line,
+            cursor_column: userData.cursor_column
+          };
+          console.log(`[Socket] Updated cursor for user ${userData.username || userData.userId} at line ${userData.cursor_line}, column ${userData.cursor_column}`);
+        } else {
+          // Ajouter comme nouvel utilisateur
+          newUsers.push(userData);
+          console.log(`[Socket] Added new user from cursor update: ${userData.username || userData.userId}`);
+        }
+        
+        return newUsers;
+      });
     });
     
     // Gestion des erreurs
@@ -175,6 +240,7 @@ export const useDocumentSocket = ({
     
     // Nettoyage à la déconnexion
     return () => {
+      console.log('[Socket] Disconnecting...');
       socket.disconnect();
       socketRef.current = null;
     };
@@ -203,30 +269,46 @@ export const useDocumentSocket = ({
     });
   }, [documentId, document, isConnected]);
   
-  // Fonction pour mettre à jour la position du curseur - ajouter plus d'informations
+  // Fonction pour mettre à jour la position du curseur - avec gestion de file d'attente
   const updateCursorPosition = useCallback((position: CursorPosition) => {
-    if (!socketRef.current || !isConnected) {
-      console.warn('Cannot update cursor: socket disconnected or not initialized');
-      return;
-    }
-    
     // Vérifier que les données sont valides avant d'envoyer
-    if (position.line <= 0 || position.column <= 0) {
-      console.warn('Invalid cursor position:', position);
+    if (position.line < 0 || position.column < 0) {
+      console.warn('[Cursor] Invalid cursor position:', position);
       return;
     }
     
-    console.log('Sending cursor position:', position);
+    // Si la socket n'est pas initialisée ou connectée, ajouter à la file d'attente
+    if (!socketRef.current || !isConnected) {
+      console.log('[Cursor] Socket not ready, queueing cursor update');
+      pendingCursorUpdatesRef.current.push(position);
+      
+      // Limiter la taille de la file d'attente pour éviter les fuites de mémoire
+      if (pendingCursorUpdatesRef.current.length > 10) {
+        pendingCursorUpdatesRef.current = pendingCursorUpdatesRef.current.slice(-10);
+      }
+      
+      return;
+    }
     
-    // Ajouter des informations pour le débogage
+    // Données à envoyer au serveur
     const cursorData = {
       documentId,
-      ...position,
-      userId, // Inclure explicitement l'userId
-      username // Inclure le username pour être sûr
+      position: position.position || 0,
+      line: position.line,
+      column: position.column,
+      userId,
+      username
     };
     
-    socketRef.current.emit('cursor-move', cursorData);
+    console.log('[Cursor] Sending position:', cursorData);
+    
+    // Envoi au serveur avec gestion d'erreur
+    try {
+      socketRef.current.emit('cursor-move', cursorData);
+    } catch (error) {
+      console.error('[Cursor] Error sending cursor position:', error);
+      pendingCursorUpdatesRef.current.push(position);
+    }
   }, [isConnected, documentId, userId, username]);
   
   return {

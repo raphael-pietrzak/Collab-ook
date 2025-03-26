@@ -1,83 +1,25 @@
 /* Styles de base pour les curseurs distants */
-.remote-cursor {
-  position: relative !important;
-}
-
-.remote-cursor-line::before {
-  content: '' !important;
-  position: absolute !important;
-  display: block !important;
-  width: 2px !important;
-  height: 18px !important;
-  background-color: inherit !important;
-  z-index: 9999 !important;
-  pointer-events: none !important;
-  transition: all 0.1s ease !important;
-  animation: blink 1.5s infinite !important;
-  /* Ajouter une bordure pour plus de visibilité */
-  outline: 1px solid #ffffff !important;
-}
-
-.remote-cursor-badge::after {
-  position: absolute !important;
-  font-size: 12px !important;
-  padding: 2px 6px !important;
-  border-radius: 3px !important;
-  margin-left: 4px !important;
-  top: -20px !important;
-  left: 0 !important;
-  white-space: nowrap !important;
-  z-index: 9999 !important;
-  pointer-events: none !important;
-  opacity: 0.95 !important;
-  transition: all 0.1s ease !important;
-  animation: fadeIn 0.3s ease !important;
-  /* Ajouter une ombre pour plus de lisibilité */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Animation pour l'apparition des badges */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 0.95;
-    transform: translateY(0);
-  }
-}
-
-/* Animation du clignotement pour les curseurs */
-@keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Styles pour un curseur de test (permet de vérifier si le CSS fonctionne) */
-.test-cursor {
+.remote-cursor-line {
   position: relative;
-  display: inline-block;
+}
+
+.remote-cursor-before {
   width: 2px;
   height: 18px;
-  background-color: red;
-  z-index: 9999;
+  display: inline-block;
+  position: relative;
+  top: 2px;
 }
 
-.test-badge {
-  position: absolute;
-  display: inline-block;
-  background-color: red;
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
+.remote-cursor-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  padding: 0 3px;
   border-radius: 3px;
-  top: -20px;
-  left: 0;
+  font-size: 11px;
+  font-weight: bold;
   white-space: nowrap;
-  z-index: 9999;
+  position: relative;
+  top: -1px;
+  z-index: 10;
+  pointer-events: none;
 }

@@ -4,9 +4,9 @@ export interface User {
 }
 
 export interface ConnectedUser extends User {
-  cursor_position?: number;
-  cursor_line?: number;
-  cursor_column?: number;
+  cursor_position: number;
+  cursor_line: number;
+  cursor_column: number;
 }
 
 export interface DocumentState {

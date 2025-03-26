@@ -3,8 +3,8 @@ import { useDocumentSocket } from '../hooks/useDocumentSocket';
 import UserList from './UserList';
 import Editor from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
-import { TextOperation } from '../types/document';
-import RemoteCursors from './RemoteCursors';
+import { TextOperation, CursorPosition } from '../types/document';
+import RemoteCursors from './RemoteCursors'; // Importer le nouveau composant
 
 interface SharedDocumentProps {
   documentId: string;
@@ -40,6 +40,8 @@ const SharedDocument: React.FC<SharedDocumentProps> = ({
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const isInitialLoad = useRef<boolean>(true);
   const lastVersionRef = useRef<number>(0);
+  const lastCursorUpdateRef = useRef<number>(0); // Pour limiter les mises à jour du curseur
+  const wasConnectedRef = useRef<boolean>(false); // Pour suivre l'état de connexion précédent
   
   // Synchroniser l'état local avec le document au chargement initial
   useEffect(() => {
@@ -74,6 +76,25 @@ const SharedDocument: React.FC<SharedDocumentProps> = ({
     }
   }, [connectedUsers]);
 
+  // Gérer les changements d'état de connexion
+  useEffect(() => {
+    // Si on vient de se reconnecter
+    if (isConnected && !wasConnectedRef.current) {
+      console.log('[Connection] Reconnected, refreshing editor state');
+      
+      // Resynchroniser la position du curseur après une courte période
+      setTimeout(() => {
+        if (editorRef.current) {
+          handleCursorUpdate(true);
+          console.log('[Connection] Cursor position resynchronized after reconnection');
+        }
+      }, 1000);
+    }
+    
+    // Mettre à jour la référence pour la prochaine comparaison
+    wasConnectedRef.current = isConnected;
+  }, [isConnected]);
+
   // Fonction pour gérer le changement de contenu dans l'éditeur
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined) {
@@ -90,112 +111,139 @@ const SharedDocument: React.FC<SharedDocumentProps> = ({
     }
   };
   
-  // Nouvelle fonction pour mettre à jour la position du curseur plus fréquemment
-  const setupCursorTracking = (editor: editor.IStandaloneCodeEditor) => {
-    let debounceTimeout: NodeJS.Timeout | null = null;
+  // NOUVELLE GESTION DES CURSEURS
+  
+  // Fonction pour mettre à jour la position du curseur de manière optimisée
+  const handleCursorUpdate = (force = false) => {
+    const now = Date.now();
+    const editor = editorRef.current;
     
-    const updateCursorDebounced = () => {
-      if (debounceTimeout) clearTimeout(debounceTimeout);
-      
-      debounceTimeout = setTimeout(() => {
-        const position = editor.getPosition();
-        if (position) {
-          updateCursorPosition({
-            position: editor.getModel()?.getOffsetAt(position) || 0,
-            line: position.lineNumber,
-            column: position.column
-          });
-        }
-      }, 50); // Délai court pour ne pas surcharger le serveur
+    // Limiter les mises à jour à 100ms d'intervalle, sauf si force est true
+    if (!editor || (!force && now - lastCursorUpdateRef.current < 100)) return;
+    
+    lastCursorUpdateRef.current = now;
+    const position = editor.getPosition();
+    
+    if (!position) return;
+    
+    const model = editor.getModel();
+    if (!model) return;
+    
+    // Créer l'objet position du curseur
+    const cursorPosition: CursorPosition = {
+      position: model.getOffsetAt(position),
+      line: position.lineNumber,
+      column: position.column
     };
-
-    // Écouter les mouvements du curseur
-    editor.onDidChangeCursorPosition(updateCursorDebounced);
     
-    // Écouter le défilement pour mettre à jour le curseur même sans déplacement
-    editor.onDidScrollChange(updateCursorDebounced);
+    // Envoyer la mise à jour
+    updateCursorPosition(cursorPosition);
+  };
+
+  // Configuration de l'éditeur et des événements liés au curseur
+  const handleEditorDidMount = (editorInstance: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editorInstance;
+    console.log("[Editor] Editor mounted and ready");
+    
+    // Événements pour les mises à jour du curseur avec debounce intégré
+    let cursorUpdateTimeout: NodeJS.Timeout | null = null;
+    
+    editorInstance.onDidChangeCursorPosition(() => {
+      // Annuler le timeout précédent s'il existe
+      if (cursorUpdateTimeout) {
+        clearTimeout(cursorUpdateTimeout);
+      }
+      
+      // Programmer une nouvelle mise à jour avec un délai de 50ms
+      cursorUpdateTimeout = setTimeout(() => {
+        handleCursorUpdate();
+        cursorUpdateTimeout = null;
+      }, 50);
+    });
+    
+    // Événement pour détecter le focus/blur sur l'éditeur
+    editorInstance.onDidFocusEditorText(() => {
+      console.log("[Editor] Editor focused, starting cursor tracking");
+      // Envoyer la position initiale
+      handleCursorUpdate(true);
+    });
+    
+    // Mise à jour après le chargement complet
+    setTimeout(() => handleCursorUpdate(true), 500);
   };
   
-  // Envoyer régulièrement la position du curseur même sans mouvement
+  // Envoi périodique de la position du curseur (heartbeat) optimisé
   useEffect(() => {
-    if (!editorRef.current || !isConnected) return;
+    console.log("[Editor] Starting cursor heartbeat");
     
-    // Fonction pour envoyer la position actuelle du curseur
-    const sendCurrentPosition = () => {
+    // Heartbeat plus fréquent quand connecté, moins fréquent quand déconnecté
+    const heartbeatInterval = isConnected ? 3000 : 10000;
+    
+    // Variable pour suivre la dernière position envoyée
+    let lastSentPosition = {
+      line: -1,
+      column: -1
+    };
+    
+    const sendHeartbeat = () => {
       const editor = editorRef.current;
       if (!editor) return;
       
       const position = editor.getPosition();
-      if (position) {
-        console.log(`Envoi périodique de la position du curseur: ligne ${position.lineNumber}, colonne ${position.column}`);
-        updateCursorPosition({
-          position: editor.getModel()?.getOffsetAt(position) || 0,
+      if (!position) return;
+      
+      // Ne pas renvoyer la même position sauf si nous venons de nous reconnecter
+      const shouldSend = position.lineNumber !== lastSentPosition.line || 
+                          position.column !== lastSentPosition.column || 
+                          !wasConnectedRef.current;
+      
+      if (shouldSend) {
+        // Mettre à jour la dernière position envoyée
+        lastSentPosition = {
           line: position.lineNumber,
           column: position.column
-        });
+        };
+        
+        const model = editor.getModel();
+        if (!model) return;
+        
+        // Envoyer la position
+        const cursorPosition = {
+          position: model.getOffsetAt(position),
+          line: position.lineNumber,
+          column: position.column
+        };
+        
+        console.log('[Heartbeat] Sending cursor position:', cursorPosition);
+        updateCursorPosition(cursorPosition);
       }
     };
     
-    // Envoyer la position toutes les 3 secondes
-    const intervalId = setInterval(sendCurrentPosition, 3000);
+    const intervalId = setInterval(sendHeartbeat, heartbeatInterval);
     
-    // Envoyer une fois immédiatement après le montage
-    setTimeout(sendCurrentPosition, 500);
+    // Envoyer la position initiale après un court délai
+    setTimeout(sendHeartbeat, 500);
     
     return () => clearInterval(intervalId);
   }, [isConnected, updateCursorPosition]);
-  
-  // Modifier le handler de montage pour utiliser la nouvelle fonction de suivi
-  const handleEditorDidMount = (editorInstance: editor.IStandaloneCodeEditor) => {
-    editorRef.current = editorInstance;
-    console.log("Éditeur monté et prêt");
-    
-    // Configurer le suivi du curseur avec mise en mémoire tampon
-    let debounceTimeout: NodeJS.Timeout | null = null;
-    
-    const updateCursorDebounced = () => {
-      if (debounceTimeout) clearTimeout(debounceTimeout);
-      
-      debounceTimeout = setTimeout(() => {
-        const position = editorInstance.getPosition();
-        if (position) {
-          console.log(`Émission de la position du curseur: ligne ${position.lineNumber}, colonne ${position.column}`);
-          updateCursorPosition({
-            position: editorInstance.getModel()?.getOffsetAt(position) || 0,
-            line: position.lineNumber,
-            column: position.column
-          });
-        }
-      }, 50);
-    };
 
-    // Écouter les mouvements du curseur
-    editorInstance.onDidChangeCursorPosition((e) => {
-      updateCursorDebounced();
-      // Log direct de la position pour le débogage
-      console.log(`Position du curseur changée: ${e.position.lineNumber}:${e.position.column}`);
-    });
-    
-    // Écouter également le défilement pour mettre à jour les positions
-    editorInstance.onDidScrollChange(() => {
-      updateCursorDebounced();
-    });
-    
-    // Mettre à jour la position initiale après le chargement
-    setTimeout(updateCursorDebounced, 500);
-    
-    // Log plus visible pour le débogage
-    console.log("%c Éditeur monté et événements configurés", "background: green; color: white; padding: 2px;");
-  };
-  
   return (
     <div className="flex flex-col h-screen w-full">
-      {/* En-tête avec statut de connexion */}
+      {/* En-tête avec statut de connexion et diagnostic */}
       <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
         <h2 className="text-xl font-bold truncate">Document: {documentId}</h2>
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm">{isConnected ? 'Connecté' : 'Déconnecté'}</span>
+        <div className="flex items-center gap-4">
+          <div className="text-sm">
+            {connectedUsers.length > 0 ? (
+              <span>{connectedUsers.length} utilisateurs connectés</span>
+            ) : (
+              <span>Aucun autre utilisateur</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-sm">{isConnected ? 'Connecté' : 'Déconnecté'}</span>
+          </div>
         </div>
       </div>
       
@@ -230,14 +278,12 @@ const SharedDocument: React.FC<SharedDocumentProps> = ({
             className="border-2 border-gray-700" // Ajouter une bordure pour visualiser la zone
           />
           
-          {/* RemoteCursors avec vérification que l'éditeur est monté */}
-          {editorRef.current && (
-            <RemoteCursors 
-              editor={editorRef.current} 
-              connectedUsers={connectedUsers}
-              currentUserId={userId} 
-            />
-          )}
+          {/* Ajouter le composant RemoteCursors */}
+          <RemoteCursors 
+            editor={editorRef.current} 
+            users={connectedUsers} 
+            currentUserId={userId} 
+          />
         </div>
         
         {/* Panneau latéral avec la liste des utilisateurs */}

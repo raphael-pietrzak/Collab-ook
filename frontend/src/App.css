@@ -1,0 +1,13 @@
+/* Ajoutez ces styles si ce fichier existe déjà, sinon créez-le */
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.monaco-editor {
+  width: 100% !important;
+  height: 100% !important;
+}

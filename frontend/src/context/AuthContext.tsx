@@ -1,50 +1,61 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface User {
+  username: string;
+  email?: string;
+  id?: string;
+}
 
 interface AuthContextType {
   token: string | null;
-  login: (token: string) => void;
+  user: User | null;
+  login: (token: string, userData: User) => void;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
+    // Récupérer les informations utilisateur du localStorage au chargement
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
       try {
-        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error('Error decoding token:', error);
-        localStorage.removeItem('token');
+        console.error("Erreur lors de la récupération des informations utilisateur:", error);
       }
     }
   }, []);
 
-  const login = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
+  const login = (token: string, userData: User) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(token);
+    setUser(userData);
   };
 
   const logout = () => {
-    setToken(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ token, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  console.log(context);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth doit être utilisé dans un AuthProvider');
   }
   return context;
-}
+};

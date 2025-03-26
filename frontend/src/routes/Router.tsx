@@ -1,13 +1,31 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useParams } from 'react-router-dom';
 import AuthenticatedRoute from '../components/auth/AuthenticatedRoute';
 import LoginForm from '../components/auth/LoginForm';
 import RegisterForm from '../components/auth/RegisterForm';
-import Editor from '../pages/Editor';
 import Home from '../pages/Home';
 import Gallery from '../pages/BookGallery';
-import SharedEditor from '../components/editor/SharedEditor';
 import Document from '../components/editor/Document';
 import Navbar from '../components/shared/Navbar';
+import SharedDocument from '../components/SharedDocument';
+
+// Composant wrapper pour récupérer l'ID du document et le token
+const SharedDocumentWrapper = () => {
+  const { documentId } = useParams();
+  const token = localStorage.getItem('token');
+  const userId = '1'; // À remplacer par une extraction depuis le token décodé
+  const username = 'test'; // À remplacer par une extraction depuis le token décodé
+  const serverUrl = 'http://localhost:3000';
+  
+  return (
+    <SharedDocument 
+      documentId={documentId || '10'}
+      username={username}
+      userId={userId} 
+      serverUrl={serverUrl}
+      token={token || ''}
+    />
+  );
+};
 
 const Router = () => {
   return (
@@ -18,14 +36,6 @@ const Router = () => {
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
         <Route 
-          path="/editor/:bookId" 
-          element={
-            <AuthenticatedRoute>
-              <Editor />
-            </AuthenticatedRoute>
-          } 
-        />
-        <Route 
           path="/gallery" 
           element={
             <AuthenticatedRoute>
@@ -35,10 +45,10 @@ const Router = () => {
         />
         <Route path="/" element={<Home />} />
         <Route 
-          path="/shared-editor/:chapterId" 
+          path="/shared-editor/:documentId" 
           element={
             <AuthenticatedRoute>
-              <SharedEditor selectedChapter={{id:'1', content:''}} />
+              <SharedDocumentWrapper />
             </AuthenticatedRoute>
           }
         />

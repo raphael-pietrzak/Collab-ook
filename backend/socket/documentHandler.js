@@ -168,39 +168,86 @@ export default function handleSocket(io, socket) {
   });
 
   socket.on('cursor-move', (data) => {
-    if (!currentDocumentId) return;
-    
-    console.log(`[Socket ${socket.id}] Cursor move from ${user.username} at position: ${data.position}, line: ${data.line}, column: ${data.column}`);
-    
-    // Mettre à jour les données utilisateur dans la structure de document
-    if (documents.has(currentDocumentId)) {
-      const docData = documents.get(currentDocumentId);
-      if (docData.users.has(user.userId)) {
-        const userData = docData.users.get(user.userId);
-        userData.cursor_position = data.position;
-        userData.cursor_line = data.line;
-        userData.cursor_column = data.column;
-        docData.users.set(user.userId, userData);
-        
-        // Log pour le débogage
-        console.log(`[Doc ${currentDocumentId}] Updated cursor position for ${user.username}`);
-      }
+    if (!currentDocumentId) {
+      console.warn(`[Socket ${socket.id}] Cursor move ignored: no current document`);
+      return;
     }
     
-    // Envoyer la mise à jour à tous les autres clients dans le même document
-    const cursorData = {
-      userId: user.userId,
-      username: user.username,
-      cursor_position: data.position,
-      cursor_line: data.line,
-      cursor_column: data.column
-    };
-    
-    // Émission à tous les autres clients du document
-    socket.to(currentDocumentId).emit('cursor-update', cursorData);
-    
-    // Log pour confirmer l'émission
-    console.log(`[Doc ${currentDocumentId}] Emitted cursor-update event to other clients`, cursorData);
+    try {
+      // Validations de base pour éviter les erreurs
+      if (!data || typeof data.line !== 'number' || typeof data.column !== 'number') {
+        console.warn(`[Socket ${socket.id}] Invalid cursor data received:`, data);
+        return;
+      }
+      
+      console.log(`[Socket ${socket.id}] Cursor move from ${user.username} at position: ${data.position}, line: ${data.line}, column: ${data.column}`);
+      
+      // Mettre à jour les données utilisateur dans la structure de document
+      if (documents.has(currentDocumentId)) {
+        const docData = documents.get(currentDocumentId);
+        if (docData.users.has(user.userId)) {
+          const userData = docData.users.get(user.userId);
+          userData.cursor_position = data.position;
+          userData.cursor_line = data.line;
+          userData.cursor_column = data.column;
+          docData.users.set(user.userId, userData);
+          
+          // Log pour le débogage
+          console.log(`[Doc ${currentDocumentId}] Updated cursor position for ${user.username}`);
+        } else {
+          // Utilisateur non trouvé dans la map des utilisateurs, probablement reconnecté
+          console.log(`[Doc ${currentDocumentId}] User ${user.username} not found in users Map, re-adding`);
+          docData.users.set(user.userId, {
+            socketId: socket.id,
+            userId: user.userId,
+            username: user.username,
+            connectedAt: new Date(),
+            cursor_position: data.position,
+            cursor_line: data.line,
+            cursor_column: data.column
+          });
+          
+          // Recalculer la liste des utilisateurs et la diffuser
+          const usersArray = Array.from(docData.users.entries()).map(([id, userData]) => ({
+            userId: id,
+            username: userData.username,
+            cursor_position: userData.cursor_position,
+            cursor_line: userData.cursor_line,
+            cursor_column: userData.cursor_column
+          }));
+          
+          io.to(currentDocumentId).emit('users-changed', usersArray);
+        }
+      } else {
+        // Le document n'existe pas dans la structure en mémoire
+        console.log(`[Socket ${socket.id}] Document ${currentDocumentId} not found, re-initializing`);
+        // Réinitialiser la structure du document
+        documents.set(currentDocumentId, {
+          users: new Map(),
+          version: 0
+        });
+        
+        // Rejoindre à nouveau le document
+        socket.emit('sync-required', { version: 0 });
+      }
+      
+      // Envoyer la mise à jour à tous les autres clients dans le même document
+      const cursorData = {
+        userId: user.userId,
+        username: user.username,
+        cursor_position: data.position,
+        cursor_line: data.line,
+        cursor_column: data.column
+      };
+      
+      // Émission à tous les autres clients du document
+      socket.to(currentDocumentId).emit('cursor-update', cursorData);
+      
+      // Log pour confirmer l'émission
+      console.log(`[Doc ${currentDocumentId}] Emitted cursor-update event to other clients`);
+    } catch (error) {
+      console.error(`[Socket ${socket.id}] Error handling cursor movement:`, error);
+    }
   });
 
   socket.on('disconnect', async () => {

@@ -7,6 +7,8 @@ import Gallery from '../pages/BookGallery';
 import Document from '../components/editor/Document';
 import Navbar from '../components/shared/Navbar';
 import SharedDocument from '../components/SharedDocument';
+import GalleryPage from '../components/gallery2/GalleryPage';
+
 
 // Composant wrapper pour récupérer l'ID du document et le token
 const SharedDocumentWrapper = () => {
@@ -35,6 +37,8 @@ const Router = () => {
       <Routes>
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
+        <Route path="/gallery-test" element={<GalleryPage />} />
+
         <Route 
           path="/gallery" 
           element={

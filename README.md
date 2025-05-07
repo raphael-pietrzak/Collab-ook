@@ -24,8 +24,8 @@ Cette plateforme met en relation des auteurs souhaitant collaborer sur des proje
 1. Clonez le dépôt
 
 ```bash
-git clone <url-du-repository>
-cd YDAYS
+git clone https://github.com/raphael-pietrzak/Collab-ook.git
+cd Collab-ook
 ```
 
 2. Démarrez les conteneurs Docker

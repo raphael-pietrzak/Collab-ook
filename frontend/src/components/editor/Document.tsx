@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Users, Save } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { useAuth } from '../../context/AuthContext';
 
 
 const socket = io('http://localhost:3000', {
@@ -19,9 +18,16 @@ interface User {
 interface CursorPosition {
   userId: number;
   username: string;
+  cursor_position: number;
+  cursor_line: number;
+  cursor_column: number;
+}
+
+interface TextOperation {
+  type: 'insert' | 'delete';
   position: number;
-  line: number;
-  column: number;
+  text?: string;
+  length?: number;
 }
 
 function Document() {
@@ -33,7 +39,8 @@ function Document() {
   const [cursors, setCursors] = useState<CursorPosition[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measureDivRef = useRef<HTMLDivElement>(null);
-  const { token } = useAuth();
+  const [showUsersList, setShowUsersList] = useState(false);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     const initializeDocument = async () => {
@@ -46,7 +53,7 @@ function Document() {
         setDocumentId(1);
 
         // Join document room
-        socket.emit('join-document', {documentId: 1, token});
+        socket.emit('join-document', {documentId: 1, userId: 1});
       } catch (error) {
         console.error('Error creating document:', error);
       }
@@ -65,9 +72,23 @@ function Document() {
       setLastSaved(new Date(lastUpdated));
     });
 
-    socket.on('document-updated', ({ content, lastUpdated }) => {
-      setContent(content);
-      setLastSaved(new Date(lastUpdated));
+    socket.on('document-updated', ({ content: serverContent, lastUpdated, operation, version: serverVersion }) => {
+      if (serverVersion > version) {
+        setContent(serverContent);
+        setVersion(serverVersion);
+        setLastSaved(new Date(lastUpdated));
+        
+        if (textareaRef.current) {
+          const currentPosition = textareaRef.current.selectionStart;
+          if (currentPosition > operation.position) {
+            const newPosition = operation.type === 'insert' 
+              ? currentPosition + (operation.text?.length || 0)
+              : Math.max(operation.position, currentPosition - (operation.length || 0));
+            textareaRef.current.selectionStart = newPosition;
+            textareaRef.current.selectionEnd = newPosition;
+          }
+        }
+      }
     });
 
     socket.on('users-changed', (users: User[]) => {
@@ -94,16 +115,49 @@ function Document() {
       socket.off('users-changed');
       socket.off('cursor-update');
     };
+  }, [version]);
+
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.users-popup') && !target.closest('.users-button')) {
+      setShowUsersList(false);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  const handleContentChange = (newContent: string) => {
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    const oldContent = content;
+    
+    const operation: TextOperation = {
+      type: newContent.length > oldContent.length ? 'insert' : 'delete',
+      position: e.target.selectionStart - (newContent.length > oldContent.length ? newContent.length - oldContent.length : 0)
+    };
+    
+    if (operation.type === 'insert') {
+      operation.text = newContent.slice(operation.position, operation.position + (newContent.length - oldContent.length));
+    } else {
+      operation.length = oldContent.length - newContent.length;
+    }
+
+    // Mettre à jour le state local immédiatement
     setContent(newContent);
-    setLastSaved(new Date());
-    console.log('Content changed:', newContent);
+    
     if (documentId) {
+      const newVersion = version + 1;
+      setVersion(newVersion);
+      
       socket.emit('update-document', {
         documentId,
-        content: newContent
+        content: newContent,
+        operation,
+        version: newVersion
       });
     }
   };
@@ -160,7 +214,7 @@ function Document() {
 
   const renderCursors = () => {
     return cursors.map((cursor) => {
-      const { x, y } = getCursorCoordinates(cursor.position);
+      const { x, y } = getCursorCoordinates(cursor.cursor_position);
       return (
         <div
           key={cursor.userId}
@@ -210,11 +264,36 @@ function Document() {
                 {isConnected ? 'Connecté' : 'Déconnecté'}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4" />
-              <span className="text-sm text-gray-600">
-                {connectedUsers.length} utilisateurs connectés
-              </span>
+            <div className="flex items-center space-x-2 relative">
+              <button 
+                className="users-button flex items-center space-x-2 hover:bg-gray-100 p-2 rounded-md transition-colors"
+                onClick={() => setShowUsersList(!showUsersList)}
+              >
+                <Users className="w-4 h-4" />
+                <span className="text-sm text-gray-600">
+                  {connectedUsers.length} en ligne
+                </span>
+              </button>
+              
+              {showUsersList && (
+                <div className="users-popup absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                  <div className="p-2">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b pb-2">
+                      Utilisateurs connectés
+                    </h3>
+                    <ul className="space-y-1">
+                      {connectedUsers.map(user => (
+                        <li 
+                          key={user.id}
+                          className="text-sm text-gray-600 py-1 px-2 hover:bg-gray-50 rounded"
+                        >
+                          {user.username}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
             {lastSaved && (
               <div className="flex items-center text-sm text-gray-600">
@@ -230,9 +309,9 @@ function Document() {
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => handleContentChange(e)}
             onSelect={handleSelectionChange}
-            className="w-full h-[60vh] p-4 text-gray-800 border-0 focus:ring-0 resize-none"
+            className="w-full h-[60vh] p-4 text-gray-800 border-0 focus:ring-0 outline-none resize-none"
             placeholder="Commencez à écrire ici..."
           />
           <div ref={measureDivRef} style={{ position: 'absolute', visibility: 'hidden' }} />

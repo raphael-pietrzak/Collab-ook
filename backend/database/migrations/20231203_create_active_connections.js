@@ -2,6 +2,7 @@ export function up(knex) {
   return knex.schema.createTable('active_connections', (table) => {
     table.increments('id').primary();
     table.integer('user_id').references('id').inTable('users').onDelete('CASCADE');
+    table.string('username').notNullable();
     table.integer('document_id').references('id').inTable('documents').onDelete('CASCADE');
     table.string('socket_id').notNullable();
     table.integer('cursor_position').defaultTo(0);

@@ -24,10 +24,14 @@ export default function LoginForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      console.log(data);
-      console.log(localStorage.getItem('token'));
+      // Extraction des informations utilisateur de la réponse
+      const userData = {
+        username: data.username || email, // Utiliser le username s'il existe, sinon utiliser l'email comme fallback
+        id: data.userId || data.id,
+        email: data.email
+      };
 
-      login(data.token);
+      login(data.token, userData);
       navigate('/gallery');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');

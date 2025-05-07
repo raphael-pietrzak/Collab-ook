@@ -8,6 +8,7 @@ import Document from '../components/editor/Document';
 import Navbar from '../components/shared/Navbar';
 import SharedDocument from '../components/SharedDocument';
 import GalleryPage from '../components/gallery2/GalleryPage';
+import Settings from '../pages/Settings';
 
 
 // Composant wrapper pour récupérer l'ID du document et le token
@@ -57,6 +58,14 @@ const Router = () => {
           }
         />
         <Route path="/editor" element={<Document />} />
+        <Route 
+          path="/settings" 
+          element={
+            <AuthenticatedRoute>
+              <Settings />
+            </AuthenticatedRoute>
+          }
+        />
       </Routes>
     </>
   );

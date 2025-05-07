@@ -11,7 +11,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - ./backend/db:/app/db
+      - ./backend/database:/app/db
     environment:
       - NODE_ENV=development
     command: npm start

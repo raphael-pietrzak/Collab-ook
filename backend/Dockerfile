@@ -19,11 +19,11 @@ COPY . .
 # Création du répertoire pour stocker les données SQLite (si nécessaire)
 RUN mkdir -p /app/db
 
-# Exécution des migrations lors de la création de l'image
-RUN npm run migrate
-
 # Exposition du port pour Express (3000 par défaut)
 EXPOSE 3000
 
-# Commande de démarrage de l'application
-CMD ["npm", "start"]
+# Rendre le script de démarrage exécutable
+RUN chmod +x ./start.sh
+
+# Commande de démarrage de l'application avec le script
+CMD ["./start.sh"]

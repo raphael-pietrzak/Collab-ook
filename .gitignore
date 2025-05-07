@@ -27,4 +27,4 @@ dist-ssr
 # Database
 *.db
 .env
-.sqlite3
+*.sqlite3
